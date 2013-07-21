@@ -1,8 +1,14 @@
 /**
  * string.c
  * 
- * Includes methods to create, modify, compare or 
- *  
+ * Includes methods to create, modify, compare or concaternate
+ * STRING objects. A STRING is a linked list type that contains
+ * wide characters (wchar_t).
+ * Remember to only use pointers of this type. Since you'll have to
+ * allocate space for this list type, you have to initialize a STRING*
+ * by calling the STRING* str_create() function.
+ * Once you don't need the STRING* object anymore, remember to call
+ * the void str_free(STRING*) procedure to free the allocated space.
  * 
  */ 
 
@@ -14,21 +20,75 @@
 
 STRING* str_create() {
 	STRING* str = (STRING*) malloc(sizeof(STRING));
-	str->payload = 0;
+	str->payload = '\0';
 	str->next = NULL;
+	str->previous = NULL;
 	str->current = str;
 	return str;
 }
 
 void str_clear(STRING* str) {
-	for(i = 0; i < size; i++) {
+	int i=0;
+	int size = str_size(str);
+	
+	for(i=0; i<size; i++) {
 		str_delete(str, 0);
 	}
 }
 
-void str_add(STRING* str, wint_t payload) {
+STRING* str_substr(STRING* str, int start, int end) {
+	STRING* sub = str_create();
+	
+	int i=0;
+	for(i=start; i<(end<str_size(str)?end:str_size(str)); i++) {
+		str_add(sub, str_get(str, i));
+	}
+	
+	return sub;
+}
+
+void str_concat(STRING* str1, STRING* str2) {
+	int i=0;
+	for(i=0; i<str_size(str2); i++) {
+		str_add(str1, str_get(str2, i));
+	}
+}
+
+void str_insert(STRING* str, int index, wchar_t payload) {
+	STRING* head = str;
+	int i = 0;
+	
+	STRING* new_str = (STRING*) malloc(sizeof(STRING));
+	new_str->payload = payload;
+	
+	if(index >= 0) {
+		while(head != NULL) {
+			if(i == index) {
+				new_str->previous = head;
+				
+				STRING* s = head->next;
+
+				new_str->next = s;
+				head->next = new_str;
+
+				if(new_str->next != NULL) {
+					new_str->next->previous = new_str;
+				}
+
+				return;
+			}
+
+			head = head->next;
+			
+			i++;
+		}
+	}
+}
+
+void str_add(STRING* str, wchar_t payload) {
 	str->current->next = (STRING*) malloc(sizeof(STRING));
 	str->current->next->payload = payload;
+	str->current->next->previous = str->current;
 	str->current = str->current->next;
 	str->current->next = NULL;
 }
@@ -49,11 +109,11 @@ void str_set_w(STRING* str, const wchar_t* c) {
 	}
 }
 
-wint_t str_top(STRING* str) {
+wchar_t str_top(STRING* str) {
 	return str->current->payload;
 }
 
-int str_search(STRING* str, wint_t value) {
+int str_search(STRING* str, wchar_t value) {
 	STRING* head = str->next;
 	int i = 0;
 
@@ -67,7 +127,7 @@ int str_search(STRING* str, wint_t value) {
 	return -1;
 }
 
-wint_t str_get(STRING* str, int index) {
+wchar_t str_get(STRING* str, int index) {
 	STRING* head = str->next;
 	int i = 0;
 
@@ -84,7 +144,7 @@ wint_t str_get(STRING* str, int index) {
 	return 0;
 }
 
-void str_delete(STRING* str, int index) {
+int str_delete(STRING* str, int index) {
 	if(index >= str_size(str) || index < 0) {
 		return -1;
 	}
@@ -99,6 +159,9 @@ void str_delete(STRING* str, int index) {
 	}
 
 	tail->next = head->next;
+	free(head);
+	head = NULL;
+	
 	str = tail;
 }
 
@@ -114,11 +177,6 @@ int str_size(STRING* str) {
 	return s;
 }
 
-/**
- * 
- * Remember to free the space allocated for the char* later!
- * 
-*/
 char* str_to_pointer(STRING* str) {
 	char* ptr = malloc(sizeof(char) * str_size(str) + 1);
 	
@@ -132,7 +190,7 @@ char* str_to_pointer(STRING* str) {
 }
 
 wchar_t* str_to_pointer_w(STRING* str) {
-	wchar_t* ptr = malloc(sizeof(wint_t) * str_size(str) + 1);
+	wchar_t* ptr = malloc(sizeof(wchar_t) * str_size(str) + 1);
 	
 	int i = 0;
 	for(i = 0; i < str_size(str); i++) {
